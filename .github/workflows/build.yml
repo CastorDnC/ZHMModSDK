@@ -5,9 +5,9 @@ on:
     branches:
       - 'master'
   release:
-    types: [ created ]
+    types: [created]
   pull_request:
-    types: [ opened, synchronize, reopened ]
+    types: [opened, synchronize, reopened]
 
 jobs:
   build:
@@ -26,32 +26,30 @@ jobs:
         with:
           arch: x64
 
-      - name: Add Ninja to PATH
+      - name: Set VCPKG env vars
         run: |
-          setx PATH "%PATH%;C:\Tools"
-
-      - name: Set VCPKG environment variables
-        run: |
-          setx VCPKG_ROOT "C:/Tools/vcpkg"
-          setx VCPKG_FEATURE_FLAGS "manifests,binarycaching"
-          setx VCPKG_BINARY_SOURCES "clear;files[C:/Tools/vcpkg/packages]"
+          $env:VCPKG_ROOT = "C:/Tools/vcpkg"
+          $env:VCPKG_FEATURE_FLAGS = "manifests,binarycaching"
+          $env:VCPKG_BINARY_SOURCES = "clear;files[C:/Tools/vcpkg/packages]"
 
       - name: Build and install debug
         run: |
-          cmake --preset x64-Debug . ^
-            -DCMAKE_TOOLCHAIN_FILE=C:/Tools/vcpkg/scripts/buildsystems/vcpkg.cmake ^
-            -DVCPKG_TARGET_TRIPLET=x64-windows ^
-            -DVCPKG_BINARY_SOURCES="clear;files[C:/Tools/vcpkg/packages]" ^
+          cmake --preset x64-Debug . `
+            -DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake `
+            -DVCPKG_TARGET_TRIPLET=x64-windows `
+            -DVCPKG_BINARY_SOURCES="$env:VCPKG_BINARY_SOURCES" `
+            -G Ninja `
             -DCMAKE_MAKE_PROGRAM="C:/Tools/ninja.exe"
           cmake --build _build/x64-Debug -j12
           cmake --install _build/x64-Debug
 
       - name: Build and install release
         run: |
-          cmake --preset x64-Release . ^
-            -DCMAKE_TOOLCHAIN_FILE=C:/Tools/vcpkg/scripts/buildsystems/vcpkg.cmake ^
-            -DVCPKG_TARGET_TRIPLET=x64-windows ^
-            -DVCPKG_BINARY_SOURCES="clear;files[C:/Tools/vcpkg/packages]" ^
+          cmake --preset x64-Debug . `
+            -DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake `
+            -DVCPKG_TARGET_TRIPLET=x64-windows `
+            -DVCPKG_BINARY_SOURCES="$env:VCPKG_BINARY_SOURCES" `
+            -G Ninja `
             -DCMAKE_MAKE_PROGRAM="C:/Tools/ninja.exe"
           cmake --build _build/x64-Release -j12
           cmake --install _build/x64-Release
@@ -75,7 +73,7 @@ jobs:
           mkdir _sdk
           Copy-Item cmake/sdk-dist.cmake -Destination _sdk/CMakeLists.txt
           Copy-Item _install/x64-Release/include -Destination _sdk/ -Recurse
-
+          
           mkdir _sdk/release
           Copy-Item _install/x64-Release/lib -Destination _sdk/release/ -Recurse
           Copy-Item _install/x64-Release/bin -Destination _sdk/release/ -Recurse
@@ -85,7 +83,7 @@ jobs:
           Remove-Item _sdk/release/bin/ResourceLib_HM3.dll
           Remove-Item _sdk/release/bin/ResourceLib_HM3.pdb
           Remove-Item _sdk/release/bin/crashpad_handler.exe
-
+          
           mkdir _sdk/debug
           Copy-Item _install/x64-Debug/lib -Destination _sdk/debug/ -Recurse
           Copy-Item _install/x64-Debug/bin -Destination _sdk/debug/ -Recurse
@@ -95,9 +93,9 @@ jobs:
           Remove-Item _sdk/debug/bin/ResourceLib_HM3.dll
           Remove-Item _sdk/debug/bin/ResourceLib_HM3.pdb
           Remove-Item _sdk/debug/bin/crashpad_handler.exe
-
+          
           mkdir _sdk/cmake
           Copy-Item cmake/zhm-mod.cmake -Destination _sdk/cmake/zhm-mod.cmake
-
+          
           Copy-Item _install/x64-Release/licenses -Destination _sdk/ -Recurse
           Copy-Item LICENSE -Destination _sdk/LICENSE
