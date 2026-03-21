@@ -2,10 +2,8 @@ name: Build
 
 on:
   push:
-    branches:
-      - 'master'
+    branches: [ master ]
   pull_request:
-    types: [ opened, synchronize, reopened ]
 
 jobs:
   build:
@@ -17,61 +15,38 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup VS environment
+      - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
 
-      - name: Setup VCPKG + Ninja
+      - name: Setup VCPKG env
         shell: pwsh
         run: |
           $env:VCPKG_ROOT = "C:/Tools/vcpkg"
+          $env:VCPKG_DEFAULT_TRIPLET = "x64-windows"
           $env:VCPKG_FEATURE_FLAGS = "manifests,binarycaching"
           $env:VCPKG_BINARY_SOURCES = "clear;files,C:/Tools/vcpkg/packages,readwrite"
-          $env:PATH += ";C:/Tools"
 
-          ninja --version
+          echo "VCPKG_ROOT=$env:VCPKG_ROOT" >> $env:GITHUB_ENV
+          echo "VCPKG_DEFAULT_TRIPLET=$env:VCPKG_DEFAULT_TRIPLET" >> $env:GITHUB_ENV
+          echo "VCPKG_FEATURE_FLAGS=$env:VCPKG_FEATURE_FLAGS" >> $env:GITHUB_ENV
+          echo "VCPKG_BINARY_SOURCES=$env:VCPKG_BINARY_SOURCES" >> $env:GITHUB_ENV
 
-      # ---------------- DEBUG ----------------
-
-      - name: Configure (Debug)
+      - name: Configure (CMake)
         shell: pwsh
         run: |
-          cmake -S . -B _build/x64-Debug `
+          cmake -S . -B _build `
             -G Ninja `
             -DCMAKE_BUILD_TYPE=Debug `
-            -DCMAKE_MAKE_PROGRAM="C:/Tools/ninja.exe" `
-            -DCMAKE_TOOLCHAIN_FILE="C:/Tools/vcpkg/scripts/buildsystems/vcpkg.cmake" `
-            -DVCPKG_TARGET_TRIPLET=x64-windows-zhm `
-            -DVCPKG_OVERLAY_TRIPLETS=cmake/vcpkg-overlays `
-            -DVCPKG_BINARY_SOURCES="clear;files,C:/Tools/vcpkg/packages,readwrite"
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
 
-      - name: Build (Debug)
-        shell: pwsh
-        run: cmake --build _build/x64-Debug -j12
-
-      - name: Install (Debug)
-        shell: pwsh
-        run: cmake --install _build/x64-Debug
-
-      # ---------------- RELEASE ----------------
-
-      - name: Configure (Release)
+      - name: Build
         shell: pwsh
         run: |
-          cmake -S . -B _build/x64-Release `
-            -G Ninja `
-            -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_MAKE_PROGRAM="C:/Tools/ninja.exe" `
-            -DCMAKE_TOOLCHAIN_FILE="C:/Tools/vcpkg/scripts/buildsystems/vcpkg.cmake" `
-            -DVCPKG_TARGET_TRIPLET=x64-windows-zhm `
-            -DVCPKG_OVERLAY_TRIPLETS=cmake/vcpkg-overlays `
-            -DVCPKG_BINARY_SOURCES="clear;files,C:/Tools/vcpkg/packages,readwrite"
+          cmake --build _build --config Debug -j12
 
-      - name: Build (Release)
+      - name: Install
         shell: pwsh
-        run: cmake --build _build/x64-Release -j12
-
-      - name: Install (Release)
-        shell: pwsh
-        run: cmake --install _build/x64-Release
+        run: |
+          cmake --install _build
