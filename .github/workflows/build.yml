@@ -22,7 +22,7 @@ jobs:
                   submodules: recursive
 
             - name: Setup Rust nightly toolchain
-              if: false
+              if: false # UNDER TESTING
               uses: dtolnay/rust-toolchain@nightly
               with:
                   components: rust-src
