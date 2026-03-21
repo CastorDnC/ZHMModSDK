@@ -34,6 +34,7 @@ private:
     void UnloadOutfits(const std::unordered_set<std::string>& p_Scenes);
     void UnloadOutfits(const std::vector<ZRuntimeResourceID>& p_OutfitBrickRuntimeResourceIds);
     void UnloadOutfits(const std::unordered_set<uint32_t>& p_Chunks);
+    void ScanLoadedBricksForOutfits();
     static std::string ToEntityTemplatePath(const std::string_view p_ScenePath);
     static std::filesystem::path GetRuntimeDirectory();
 
@@ -53,6 +54,7 @@ private:
     std::unordered_map<std::string, std::vector<std::pair<ZResourcePtr, ZEntityRef>>> m_SceneToLoadedOutfitBricks;
     std::unordered_map<ZRuntimeResourceID, std::pair<ZResourcePtr, ZEntityRef>> m_LoadedGlobalOutfitBricks;
     std::unordered_map<ZRuntimeResourceID, std::pair<ZResourcePtr, ZEntityRef>> m_AdditionalLoadedOutfitBricks;
+    std::unordered_set<ZRuntimeResourceID> m_DiscoveredOutfitBricks;
     std::unordered_set<ZRuntimeResourceID> m_SelectedOutfitBricks;
     bool m_ShowResourcePackageLimitPopup = false;
     bool m_ResourcePackageLimitPopupOpened = false;
