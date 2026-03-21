@@ -10,6 +10,7 @@
 
 #include <Glacier/ZModule.h>
 #include <Glacier/SExternalReferences.h>
+#include <Glacier/ZHitman5.h>
 
 #include <Util/ResourceUtils.h>
 #include "Logging.h"
@@ -44,6 +45,44 @@ void Outfits::OnDrawUI(const bool p_HasFocus) {
         if (m_Scenes.empty()) {
             BuildSceneNamesToRuntimeResourceIds();
         }
+
+        if (ImGui::CollapsingHeader("Current Active Outfit")) {
+            ZHitman5* s_Hitman = s_LocalHitman.m_pInterfaceRef;
+            if (s_Hitman) {
+                const ZGlobalOutfitKit* s_Kit = s_Hitman->m_rOutfitKit.m_pInterfaceRef;
+                if (s_Kit) {
+                    ImGui::Text("Common Name: %s", s_Kit->m_sCommonName.c_str());
+                    ImGui::Text("Title:       %s", s_Kit->m_sTitle.c_str());
+                    const std::string s_IdStr(s_Kit->m_sId.ToString().c_str());
+                    ImGui::Text("Repo ID:     %s", s_IdStr.c_str());
+                    ImGui::Text("Charset: %d  Variation: %d",
+                        s_Hitman->m_nOutfitCharset, s_Hitman->m_nOutfitVariation);
+                    ImGui::Text("Outfit Type: %d  AI Category: %d  Actor Type: %d  Rank: %d",
+                        static_cast<int32_t>(s_Kit->m_eOutfitType),
+                        static_cast<int32_t>(s_Kit->m_eOutfitAICategory),
+                        static_cast<int32_t>(s_Kit->m_eActorType),
+                        static_cast<int32_t>(s_Kit->m_eActorRank));
+                    ImGui::Text("HP: %.0f  Armor: %d",
+                        s_Kit->m_fHitPoints, s_Kit->m_nArmorRating);
+                    ImGui::Text("Hitman Suit: %s  Hero Disguise: %s  Female: %s",
+                        s_Kit->m_bIsHitmanSuit ? "Yes" : "No",
+                        s_Kit->m_bHeroDisguiseAvailable ? "Yes" : "No",
+                        s_Kit->m_bIsFemale ? "Yes" : "No");
+                    ImGui::Text("Weapons Allowed: %s  Authority: %s  Can Call Help: %s",
+                        s_Kit->m_bWeaponsAllowed ? "Yes" : "No",
+                        s_Kit->m_bAuthorityFigure ? "Yes" : "No",
+                        s_Kit->m_bCanCallForHelp ? "Yes" : "No");
+                }
+                else {
+                    ImGui::TextDisabled("No outfit equipped.");
+                }
+            }
+            else {
+                ImGui::TextDisabled("Player not available.");
+            }
+        }
+
+        ImGui::Separator();
 
         ImGui::BeginDisabled(m_IsGlobalDataSeason2BrickLoaded);
 
@@ -127,7 +166,7 @@ void Outfits::OnDrawUI(const bool p_HasFocus) {
         ImGui::Text("Brick Resource ID");
         ImGui::SameLine();
 
-        ImGui::SetNextItemWidth(-1);
+        ImGui::SetNextItemWidth(-FLT_MIN);
 
         ImGui::InputText(
             "##BrickResourceId",
@@ -135,10 +174,24 @@ void Outfits::OnDrawUI(const bool p_HasFocus) {
             sizeof(s_BrickResourceId)
         );
 
+        if (ImGui::Button("Scan Scene Bricks")) {
+            ScanLoadedBricksForOutfits();
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("(%zu discovered)", m_DiscoveredOutfitBricks.size());
+
         ImGui::TextUnformatted("Outfit Bricks:");
         ImGui::BeginChild("OutfitBrickList", ImVec2(0, 250), true, ImGuiWindowFlags_HorizontalScrollbar);
 
-        for (const auto& [s_OutfitBrickRuntimeResourceId, _] : m_AdditionalLoadedOutfitBricks) {
+        std::unordered_set<ZRuntimeResourceID> s_AllKnownBricks;
+        for (const auto& [s_RID, _] : m_AdditionalLoadedOutfitBricks) {
+            s_AllKnownBricks.insert(s_RID);
+        }
+        for (const auto& s_RID : m_DiscoveredOutfitBricks) {
+            s_AllKnownBricks.insert(s_RID);
+        }
+
+        for (const auto& s_OutfitBrickRuntimeResourceId : s_AllKnownBricks) {
             const bool s_IsLoaded = m_AdditionalLoadedOutfitBricks.contains(s_OutfitBrickRuntimeResourceId);
             bool s_IsSelected = m_SelectedOutfitBricks.contains(s_OutfitBrickRuntimeResourceId);
             const std::string s_OutfitBrickLabel = fmt::format("{:016X}", s_OutfitBrickRuntimeResourceId.GetID());
@@ -170,6 +223,7 @@ void Outfits::OnDrawUI(const bool p_HasFocus) {
             std::vector<std::string> s_ScenesToLoad;
             std::unordered_set<std::string> s_ScenesToUnload;
             std::vector<ZRuntimeResourceID> s_OutfitBricksToUnload;
+            std::vector<ZRuntimeResourceID> s_DiscoveredBricksToLoad;
 
             for (const auto& s_SceneName : m_SelectedScenes) {
                 if (!m_LoadedScenes.contains(s_SceneName)) {
@@ -186,6 +240,13 @@ void Outfits::OnDrawUI(const bool p_HasFocus) {
             for (const auto& [s_OutfitBrickRuntimeResourceId, _] : m_AdditionalLoadedOutfitBricks) {
                 if (!m_SelectedOutfitBricks.contains(s_OutfitBrickRuntimeResourceId)) {
                     s_OutfitBricksToUnload.push_back(s_OutfitBrickRuntimeResourceId);
+                }
+            }
+
+            for (const auto& s_DiscoveredRID : m_DiscoveredOutfitBricks) {
+                if (m_SelectedOutfitBricks.contains(s_DiscoveredRID) &&
+                    !m_AdditionalLoadedOutfitBricks.contains(s_DiscoveredRID)) {
+                    s_DiscoveredBricksToLoad.push_back(s_DiscoveredRID);
                 }
             }
 
@@ -215,6 +276,13 @@ void Outfits::OnDrawUI(const bool p_HasFocus) {
                         for (uint32_t s_ChunkIndex : s_ChunkIndices) {
                             m_PendingChunks.insert(s_ChunkIndex);
                         }
+                    }
+                }
+
+                for (const auto& s_DiscoveredRID : s_DiscoveredBricksToLoad) {
+                    const auto& s_ChunkIndices = SDK()->GetChunkIndicesForRuntimeResourceId(s_DiscoveredRID);
+                    for (uint32_t s_ChunkIndex : s_ChunkIndices) {
+                        m_PendingChunks.insert(s_ChunkIndex);
                     }
                 }
 
@@ -254,6 +322,10 @@ void Outfits::OnDrawUI(const bool p_HasFocus) {
                     LoadOutfits(s_BrickRuntimeResourceID);
 
                     s_BrickResourceId[0] = '\0';
+                }
+
+                for (const auto& s_DiscoveredRID : s_DiscoveredBricksToLoad) {
+                    LoadOutfits(s_DiscoveredRID);
                 }
             }
         }
@@ -911,6 +983,33 @@ void Outfits::UnloadOutfits(const std::unordered_set<uint32_t>& p_Chunks) {
     }
 }
 
+void Outfits::ScanLoadedBricksForOutfits() {
+    m_DiscoveredOutfitBricks.clear();
+
+    const auto& s_LoadedBricks = Globals::Hitman5Module->m_pEntitySceneContext->m_aLoadedBricks;
+
+    for (const auto& s_Brick : s_LoadedBricks) {
+        const auto& s_RID = s_Brick.m_RuntimeResourceID;
+
+        if (s_RID == ResId<"[assembly:/_pro/scenes/bricks/globaldata.brick].pc_entitytype"> ||
+            s_RID == ResId<"[assembly:/_pro/scenes/bricks/globaldata_s2.brick].pc_entitytype"> ||
+            s_RID == ResId<"[assembly:/_pro/scenes/bricks/globaldata_s3.brick].pc_entitytype">) {
+            continue;
+        }
+
+        std::unordered_set<uint64_t> s_Visited;
+        std::unordered_set<ZRuntimeResourceID> s_Found;
+
+        FindOutfitReferencesRecursive(s_RID, s_Visited, s_Found);
+
+        for (const auto& s_FoundRID : s_Found) {
+            m_DiscoveredOutfitBricks.insert(s_FoundRID);
+        }
+    }
+
+    Logger::Debug("Outfit scan complete. Found {} outfit bricks.", m_DiscoveredOutfitBricks.size());
+}
+
 std::string Outfits::ToEntityTemplatePath(const std::string_view p_ScenePath) {
     std::string s_NormalizedPath(p_ScenePath);
 
@@ -947,6 +1046,7 @@ DEFINE_PLUGIN_DETOUR(Outfits, void, ZLevelManager_StartGame, ZLevelManager* th) 
 DEFINE_PLUGIN_DETOUR(Outfits, void, OnClearScene, ZEntitySceneContext* th, bool p_FullyUnloadScene) {
     m_SelectedScenes.clear();
     m_LoadedGlobalOutfitBricks.clear();
+    m_DiscoveredOutfitBricks.clear();
 
     if (!m_LoadedScenes.empty()) {
         UnloadOutfits(m_LoadedScenes);
