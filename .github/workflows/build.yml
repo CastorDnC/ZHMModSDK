@@ -35,13 +35,13 @@ jobs:
 
       - name: Build and install debug
         run: |
-          cmake --preset x64-Debug .
+          cmake --preset x64-Debug . -DCMAKE_TOOLCHAIN_FILE=C:/Tools/vcpkg/scripts/buildsystems/vcpkg.cmake
           cmake --build _build/x64-Debug -j12
           cmake --install _build/x64-Debug
-
+      
       - name: Build and install release
         run: |
-          cmake --preset x64-Release .
+          cmake --preset x64-Release . -DCMAKE_TOOLCHAIN_FILE=C:/Tools/vcpkg/scripts/buildsystems/vcpkg.cmake
           cmake --build _build/x64-Release -j12
           cmake --install _build/x64-Release
 
