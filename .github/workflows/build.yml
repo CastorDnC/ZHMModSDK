@@ -30,7 +30,6 @@ jobs:
           $env:VCPKG_BINARY_SOURCES = "clear;files,C:/Tools/vcpkg/packages,readwrite"
           $env:PATH += ";C:/Tools"
 
-          echo "Using VCPKG at $env:VCPKG_ROOT"
           ninja --version
 
       # ---------------- DEBUG ----------------
@@ -44,6 +43,7 @@ jobs:
             -DCMAKE_MAKE_PROGRAM="C:/Tools/ninja.exe" `
             -DCMAKE_TOOLCHAIN_FILE="C:/Tools/vcpkg/scripts/buildsystems/vcpkg.cmake" `
             -DVCPKG_TARGET_TRIPLET=x64-windows-zhm `
+            -DVCPKG_OVERLAY_TRIPLETS=cmake/vcpkg-overlays `
             -DVCPKG_BINARY_SOURCES="clear;files,C:/Tools/vcpkg/packages,readwrite"
 
       - name: Build (Debug)
@@ -65,6 +65,7 @@ jobs:
             -DCMAKE_MAKE_PROGRAM="C:/Tools/ninja.exe" `
             -DCMAKE_TOOLCHAIN_FILE="C:/Tools/vcpkg/scripts/buildsystems/vcpkg.cmake" `
             -DVCPKG_TARGET_TRIPLET=x64-windows-zhm `
+            -DVCPKG_OVERLAY_TRIPLETS=cmake/vcpkg-overlays `
             -DVCPKG_BINARY_SOURCES="clear;files,C:/Tools/vcpkg/packages,readwrite"
 
       - name: Build (Release)
