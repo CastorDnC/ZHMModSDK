@@ -4,16 +4,12 @@ on:
   push:
     branches:
       - 'master'
-  release:
-    types: [created]
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [ opened, synchronize, reopened ]
 
 jobs:
   build:
-    name: Build
     runs-on: cstr-runner
-    if: github.event_name == 'pull_request' || github.event_name == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/master') || github.repository != 'OrfeasZ/ZHMModSDK'
 
     steps:
       - name: Checkout
@@ -26,76 +22,52 @@ jobs:
         with:
           arch: x64
 
-      - name: Set VCPKG env vars
+      - name: Setup VCPKG + Ninja
+        shell: pwsh
         run: |
           $env:VCPKG_ROOT = "C:/Tools/vcpkg"
           $env:VCPKG_FEATURE_FLAGS = "manifests,binarycaching"
           $env:VCPKG_BINARY_SOURCES = "clear;files[C:/Tools/vcpkg/packages]"
+          $env:PATH += ";C:/Tools"
 
-      - name: Build and install debug
+          echo "VCPKG_ROOT=$env:VCPKG_ROOT"
+          ninja --version
+
+      # DEBUG BUILD
+      - name: Configure (Debug)
+        shell: pwsh
         run: |
-          cmake --preset x64-Debug . `
-            -DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake `
-            -DVCPKG_TARGET_TRIPLET=x64-windows `
-            -DVCPKG_BINARY_SOURCES="$env:VCPKG_BINARY_SOURCES" `
+          cmake -S . -B _build/x64-Debug `
             -G Ninja `
-            -DCMAKE_MAKE_PROGRAM="C:/Tools/ninja.exe"
-          cmake --build _build/x64-Debug -j12
-          cmake --install _build/x64-Debug
-
-      - name: Build and install release
-        run: |
-          cmake --preset x64-Debug . `
-            -DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake `
+            -DCMAKE_MAKE_PROGRAM="C:/Tools/ninja.exe" `
+            -DCMAKE_TOOLCHAIN_FILE="C:/Tools/vcpkg/scripts/buildsystems/vcpkg.cmake" `
             -DVCPKG_TARGET_TRIPLET=x64-windows `
-            -DVCPKG_BINARY_SOURCES="$env:VCPKG_BINARY_SOURCES" `
+            -DVCPKG_BINARY_SOURCES="clear;files[C:/Tools/vcpkg/packages]"
+
+      - name: Build (Debug)
+        shell: pwsh
+        run: cmake --build _build/x64-Debug -j12
+
+      - name: Install (Debug)
+        shell: pwsh
+        run: cmake --install _build/x64-Debug
+
+      # RELEASE BUILD
+      - name: Configure (Release)
+        shell: pwsh
+        run: |
+          cmake -S . -B _build/x64-Release `
             -G Ninja `
-            -DCMAKE_MAKE_PROGRAM="C:/Tools/ninja.exe"
-          cmake --build _build/x64-Release -j12
-          cmake --install _build/x64-Release
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_MAKE_PROGRAM="C:/Tools/ninja.exe" `
+            -DCMAKE_TOOLCHAIN_FILE="C:/Tools/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows `
+            -DVCPKG_BINARY_SOURCES="clear;files[C:/Tools/vcpkg/packages]"
 
-      - name: Copy debug artifacts
-        run: |
-          mkdir _dist-debug
-          Copy-Item _install/x64-Debug/bin/* -Destination _dist-debug/ -Recurse
-          Copy-Item _install/x64-Debug/licenses -Destination _dist-debug/ -Recurse
-          Copy-Item LICENSE -Destination _dist-debug/LICENSE
+      - name: Build (Release)
+        shell: pwsh
+        run: cmake --build _build/x64-Release -j12
 
-      - name: Copy release artifacts
-        run: |
-          mkdir _dist-release
-          Copy-Item _install/x64-Release/bin/* -Destination _dist-release/ -Recurse
-          Copy-Item _install/x64-Release/licenses -Destination _dist-release/ -Recurse
-          Copy-Item LICENSE -Destination _dist-release/LICENSE
-
-      - name: Copy SDK dev artifacts
-        run: |
-          mkdir _sdk
-          Copy-Item cmake/sdk-dist.cmake -Destination _sdk/CMakeLists.txt
-          Copy-Item _install/x64-Release/include -Destination _sdk/ -Recurse
-          
-          mkdir _sdk/release
-          Copy-Item _install/x64-Release/lib -Destination _sdk/release/ -Recurse
-          Copy-Item _install/x64-Release/bin -Destination _sdk/release/ -Recurse
-          Remove-Item _sdk/release/bin/mods -Recurse
-          Remove-Item _sdk/release/bin/dinput8.dll
-          Remove-Item _sdk/release/bin/dinput8.pdb
-          Remove-Item _sdk/release/bin/ResourceLib_HM3.dll
-          Remove-Item _sdk/release/bin/ResourceLib_HM3.pdb
-          Remove-Item _sdk/release/bin/crashpad_handler.exe
-          
-          mkdir _sdk/debug
-          Copy-Item _install/x64-Debug/lib -Destination _sdk/debug/ -Recurse
-          Copy-Item _install/x64-Debug/bin -Destination _sdk/debug/ -Recurse
-          Remove-Item _sdk/debug/bin/mods -Recurse
-          Remove-Item _sdk/debug/bin/dinput8.dll
-          Remove-Item _sdk/debug/bin/dinput8.pdb
-          Remove-Item _sdk/debug/bin/ResourceLib_HM3.dll
-          Remove-Item _sdk/debug/bin/ResourceLib_HM3.pdb
-          Remove-Item _sdk/debug/bin/crashpad_handler.exe
-          
-          mkdir _sdk/cmake
-          Copy-Item cmake/zhm-mod.cmake -Destination _sdk/cmake/zhm-mod.cmake
-          
-          Copy-Item _install/x64-Release/licenses -Destination _sdk/ -Recurse
-          Copy-Item LICENSE -Destination _sdk/LICENSE
+      - name: Install (Release)
+        shell: pwsh
+        run: cmake --install _build/x64-Release
