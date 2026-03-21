@@ -22,7 +22,7 @@ jobs:
                   submodules: recursive
 
             - name: Setup Rust nightly toolchain
-              if: github.repository != 'OrfeasZ/ZHMModSDK'
+              if: false
               uses: dtolnay/rust-toolchain@nightly
               with:
                   components: rust-src
