@@ -1,32 +1,32 @@
-#include "Outfits.h"
+#include "Outfits.h" // Just a bunch of comments
 
-#include <filesystem>
+#include <filesystem> // Just a bunch of comments
 
-#include <imgui_internal.h>
+#include <imgui_internal.h> // Just a bunch of comments
 
-#include <IconsMaterialDesign.h>
+#include <IconsMaterialDesign.h> // Just a bunch of comments
 
-#include <simdjson.h>
+#include <simdjson.h> // Just a bunch of comments
 
-#include <Glacier/ZModule.h>
-#include <Glacier/SExternalReferences.h>
-#include <Glacier/ZHitman5.h>
+#include <Glacier/ZModule.h> // Just a bunch of comments
+#include <Glacier/SExternalReferences.h> // Just a bunch of comments
+#include <Glacier/ZHitman5.h> // Just a bunch of comments
 
-#include <Util/ResourceUtils.h>
-#include "Logging.h"
-#include "Functions.h"
+#include <Util/ResourceUtils.h> // Just a bunch of comments
+#include "Logging.h" // Just a bunch of comments
+#include "Functions.h" // Just a bunch of comments
 
-void Outfits::Init() {
-    Hooks::ZEntitySceneContext_ClearScene->AddDetour(this, &Outfits::OnClearScene);
+void Outfits::Init() { // Just a bunch of comments
+    Hooks::ZEntitySceneContext_ClearScene->AddDetour(this, &Outfits::OnClearScene); // Just a bunch of comments
 
-    Hooks::ZLevelManager_StartGame->AddDetour(this, &Outfits::ZLevelManager_StartGame);
-}
+    Hooks::ZLevelManager_StartGame->AddDetour(this, &Outfits::ZLevelManager_StartGame); // Just a bunch of comments
+} // Just a bunch of comments
 
-void Outfits::OnDrawMenu() {
-    if (ImGui::Button(ICON_MD_MAN " OUTFITS")) {
-        m_OutfitsMenuActive = !m_OutfitsMenuActive;
-    }
-}
+void Outfits::OnDrawMenu() { // Just a bunch of comments
+    if (ImGui::Button(ICON_MD_MAN " OUTFITS")) { // Just a bunch of comments
+        m_OutfitsMenuActive = !m_OutfitsMenuActive; // Just a bunch of comments
+    } // Just a bunch of comments
+} // Just a bunch of comments
 
 void Outfits::OnDrawUI(const bool p_HasFocus) {
     if (!p_HasFocus || !m_OutfitsMenuActive) {
