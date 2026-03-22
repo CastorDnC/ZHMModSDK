@@ -519,6 +519,8 @@ void Outfits::BuildSceneNamesToRuntimeResourceIds() {
             m_Scenes[s_SceneName.c_str()].insert(s_SceneRuntimeResourceId);
         }
     }
+
+    m_Scenes["Requiem"].insert(ZRuntimeResourceID(0x00CCB7DF53F146D4ULL));
 }
 
 void Outfits::BuildSceneToOutfitBrickRuntimeResourceIds(const std::string& p_SceneName, const ZRuntimeResourceID& p_SceneRuntimeResourceId) {
