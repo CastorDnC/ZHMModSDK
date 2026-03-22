@@ -1,32 +1,32 @@
-#include "Outfits.h" // Just a bunch of comments
+#include "Outfits.h"
 
-#include <filesystem> // Just a bunch of comments
+#include <filesystem>
 
-#include <imgui_internal.h> // Just a bunch of comments
+#include <imgui_internal.h>
 
-#include <IconsMaterialDesign.h> // Just a bunch of comments
+#include <IconsMaterialDesign.h>
 
-#include <simdjson.h> // Just a bunch of comments
+#include <simdjson.h>
 
-#include <Glacier/ZModule.h> // Just a bunch of comments
-#include <Glacier/SExternalReferences.h> // Just a bunch of comments
-#include <Glacier/ZHitman5.h> // Just a bunch of comments
+#include <Glacier/ZModule.h>
+#include <Glacier/SExternalReferences.h>
+#include <Glacier/ZHitman5.h>
 
-#include <Util/ResourceUtils.h> // Just a bunch of comments
-#include "Logging.h" // Just a bunch of comments
-#include "Functions.h" // Just a bunch of comments
+#include <Util/ResourceUtils.h>
+#include "Logging.h"
+#include "Functions.h"
 
-void Outfits::Init() { // Just a bunch of comments
-    Hooks::ZEntitySceneContext_ClearScene->AddDetour(this, &Outfits::OnClearScene); // Just a bunch of comments
+void Outfits::Init() {
+    Hooks::ZEntitySceneContext_ClearScene->AddDetour(this, &Outfits::OnClearScene);
 
-    Hooks::ZLevelManager_StartGame->AddDetour(this, &Outfits::ZLevelManager_StartGame); // Just a bunch of comments
-} // Just a bunch of comments
+    Hooks::ZLevelManager_StartGame->AddDetour(this, &Outfits::ZLevelManager_StartGame);
+}
 
-void Outfits::OnDrawMenu() { // Just a bunch of comments
-    if (ImGui::Button(ICON_MD_MAN " OUTFITS")) { // Just a bunch of comments
-        m_OutfitsMenuActive = !m_OutfitsMenuActive; // Just a bunch of comments
-    } // Just a bunch of comments
-} // Just a bunch of comments
+void Outfits::OnDrawMenu() {
+    if (ImGui::Button(ICON_MD_MAN " OUTFITS")) {
+        m_OutfitsMenuActive = !m_OutfitsMenuActive;
+    }
+}
 
 void Outfits::OnDrawUI(const bool p_HasFocus) {
     if (!p_HasFocus || !m_OutfitsMenuActive) {
@@ -55,6 +55,20 @@ void Outfits::OnDrawUI(const bool p_HasFocus) {
                     ImGui::Text("Title:       %s", s_Kit->m_sTitle.c_str());
                     const std::string s_IdStr(s_Kit->m_sId.ToString().c_str());
                     ImGui::Text("Repo ID:     %s", s_IdStr.c_str());
+                    ZRuntimeResourceID s_ActiveBrickRID;
+                    bool s_ActiveBrickFound = false;
+                    for (const auto& s_LoadedBrick : Globals::Hitman5Module->m_pEntitySceneContext->m_aLoadedBricks) {
+                        if (s_LoadedBrick.m_EntityRef.QueryInterface<ZGlobalOutfitKit>() == s_Kit) {
+                            s_ActiveBrickRID = s_LoadedBrick.m_RuntimeResourceID;
+                            s_ActiveBrickFound = true;
+                            break;
+                        }
+                    }
+                    if (s_ActiveBrickFound) {
+                        ImGui::Text("Brick:       %016llX", s_ActiveBrickRID.GetID());
+                    } else {
+                        ImGui::TextDisabled("Brick:       (unknown)");
+                    }
                     ImGui::Text("Charset: %d  Variation: %d",
                         s_Hitman->m_nOutfitCharset, s_Hitman->m_nOutfitVariation);
                     ImGui::Text("Outfit Type: %d  AI Category: %d  Actor Type: %d  Rank: %d",
@@ -181,18 +195,22 @@ void Outfits::OnDrawUI(const bool p_HasFocus) {
         ImGui::TextDisabled("(%zu discovered)", m_DiscoveredOutfitBricks.size());
 
         ImGui::TextUnformatted("Outfit Bricks:");
-        ImGui::BeginChild("OutfitBrickList", ImVec2(0, 250), true, ImGuiWindowFlags_HorizontalScrollbar);
+        ImGui::BeginChild("OutfitBrickList", ImVec2(0, 200), true, ImGuiWindowFlags_HorizontalScrollbar);
 
         std::unordered_set<ZRuntimeResourceID> s_AllKnownBricks;
         for (const auto& [s_RID, _] : m_AdditionalLoadedOutfitBricks) {
             s_AllKnownBricks.insert(s_RID);
         }
-        for (const auto& s_RID : m_DiscoveredOutfitBricks) {
+        for (const auto& s_RID : m_PinnedOutfitBricks) {
             s_AllKnownBricks.insert(s_RID);
         }
 
+        ZRuntimeResourceID s_BrickToRemove;
+        bool s_RemoveBrick = false;
+
         for (const auto& s_OutfitBrickRuntimeResourceId : s_AllKnownBricks) {
             const bool s_IsLoaded = m_AdditionalLoadedOutfitBricks.contains(s_OutfitBrickRuntimeResourceId);
+            const bool s_IsPinned = m_PinnedOutfitBricks.contains(s_OutfitBrickRuntimeResourceId);
             bool s_IsSelected = m_SelectedOutfitBricks.contains(s_OutfitBrickRuntimeResourceId);
             const std::string s_OutfitBrickLabel = fmt::format("{:016X}", s_OutfitBrickRuntimeResourceId.GetID());
 
@@ -209,9 +227,51 @@ void Outfits::OnDrawUI(const bool p_HasFocus) {
                 ImGui::SameLine();
                 ImGui::TextDisabled("(loaded)");
             }
+
+            if (s_IsPinned) {
+                ImGui::SameLine();
+                const std::string s_RemoveId = fmt::format("-##pin{:016X}", s_OutfitBrickRuntimeResourceId.GetID());
+                if (ImGui::SmallButton(s_RemoveId.c_str())) {
+                    s_BrickToRemove = s_OutfitBrickRuntimeResourceId;
+                    s_RemoveBrick = true;
+                }
+            }
+        }
+
+        if (s_RemoveBrick) {
+            m_PinnedOutfitBricks.erase(s_BrickToRemove);
+            m_SelectedOutfitBricks.erase(s_BrickToRemove);
         }
 
         ImGui::EndChild();
+
+        if (!m_DiscoveredOutfitBricks.empty()) {
+            ImGui::TextUnformatted("Discovered Bricks:");
+            ImGui::BeginChild("DiscoveredBrickList", ImVec2(0, 120), true, ImGuiWindowFlags_HorizontalScrollbar);
+
+            ZRuntimeResourceID s_BrickToPin;
+            bool s_PinBrick = false;
+
+            for (const auto& s_DiscoveredRID : m_DiscoveredOutfitBricks) {
+                if (m_PinnedOutfitBricks.contains(s_DiscoveredRID)) {
+                    continue;
+                }
+                const std::string s_DiscoveredLabel = fmt::format("{:016X}", s_DiscoveredRID.GetID());
+                ImGui::TextUnformatted(s_DiscoveredLabel.c_str());
+                ImGui::SameLine();
+                const std::string s_PinId = fmt::format("+##disc{:016X}", s_DiscoveredRID.GetID());
+                if (ImGui::SmallButton(s_PinId.c_str())) {
+                    s_BrickToPin = s_DiscoveredRID;
+                    s_PinBrick = true;
+                }
+            }
+
+            if (s_PinBrick) {
+                m_PinnedOutfitBricks.insert(s_BrickToPin);
+            }
+
+            ImGui::EndChild();
+        }
 
         ImGui::Spacing();
 
@@ -243,10 +303,10 @@ void Outfits::OnDrawUI(const bool p_HasFocus) {
                 }
             }
 
-            for (const auto& s_DiscoveredRID : m_DiscoveredOutfitBricks) {
-                if (m_SelectedOutfitBricks.contains(s_DiscoveredRID) &&
-                    !m_AdditionalLoadedOutfitBricks.contains(s_DiscoveredRID)) {
-                    s_DiscoveredBricksToLoad.push_back(s_DiscoveredRID);
+            for (const auto& s_PinnedRID : m_PinnedOutfitBricks) {
+                if (m_SelectedOutfitBricks.contains(s_PinnedRID) &&
+                    !m_AdditionalLoadedOutfitBricks.contains(s_PinnedRID)) {
+                    s_DiscoveredBricksToLoad.push_back(s_PinnedRID);
                 }
             }
 
@@ -279,8 +339,8 @@ void Outfits::OnDrawUI(const bool p_HasFocus) {
                     }
                 }
 
-                for (const auto& s_DiscoveredRID : s_DiscoveredBricksToLoad) {
-                    const auto& s_ChunkIndices = SDK()->GetChunkIndicesForRuntimeResourceId(s_DiscoveredRID);
+                for (const auto& s_PinnedRID : s_DiscoveredBricksToLoad) {
+                    const auto& s_ChunkIndices = SDK()->GetChunkIndicesForRuntimeResourceId(s_PinnedRID);
                     for (uint32_t s_ChunkIndex : s_ChunkIndices) {
                         m_PendingChunks.insert(s_ChunkIndex);
                     }
