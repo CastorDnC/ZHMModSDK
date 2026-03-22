@@ -41,9 +41,9 @@
 #include <Shlobj.h>
 #include <Shlwapi.h>
 #include <format>
+#include <tuple>
 #include <shellapi.h>
 #include <simdjson.h>
-#include <semver.hpp>
 #include <limits.h>
 
 #include <sentry.h>
@@ -567,12 +567,12 @@ bool ModSDK::CheckForUpdates() const {
         const std::string s_LatestVersionStr(s_LatestVersion.substr(1));
 
         // Compare the latest version with the current version.
-        semver::version<> s_CurrentVersion{};
-        semver::version<> s_LatestSemver{};
-        semver::parse(SDKVersion(), s_CurrentVersion);
-        semver::parse(s_LatestVersionStr, s_LatestSemver);
+        int s_CurMaj = 0, s_CurMin = 0, s_CurPatch = 0;
+        int s_LatMaj = 0, s_LatMin = 0, s_LatPatch = 0;
+        sscanf_s(SDKVersion(), "%d.%d.%d", &s_CurMaj, &s_CurMin, &s_CurPatch);
+        sscanf_s(s_LatestVersionStr.c_str(), "%d.%d.%d", &s_LatMaj, &s_LatMin, &s_LatPatch);
 
-        if (s_LatestSemver > s_CurrentVersion) {
+        if (std::tie(s_LatMaj, s_LatMin, s_LatPatch) > std::tie(s_CurMaj, s_CurMin, s_CurPatch)) {
             Logger::Info("A new version of the Mod SDK is available: {}.", s_LatestVersion);
             ShowVersionNotice(std::string(s_LatestVersion));
             return true;

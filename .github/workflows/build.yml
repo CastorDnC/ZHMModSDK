@@ -3,7 +3,6 @@ name: Build
 on:
   push:
     branches: [ master ]
-  pull_request:
   release:
     types: [ created ]
 
@@ -24,26 +23,37 @@ jobs:
         with:
           arch: x64
 
-      # 🔥 USE LOCAL TOOLS (Ninja, Rust, stb.)
+      # 🔥 USE LOCAL TOOLS
       - name: Use local tools
         shell: pwsh
         run: |
           $env:PATH = "C:/Tools/ninja;C:/Program Files/CMake/bin;C:/Users/Castor/.cargo/bin;" + $env:PATH
           echo "PATH=$env:PATH" >> $env:GITHUB_ENV
 
-      # 🔥 VCPKG CACHE
-      - name: Cache vcpkg
+      # 🔥 ENSURE BINARY CACHE DIR
+      - name: Ensure vcpkg binary cache dir exists
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force -Path "C:/vcpkg-binary-cache"
+
+      # 🔥 VCPKG BINARY CACHE (EZ A LÉNYEG)
+      - name: Cache vcpkg binary cache
         uses: actions/cache@v4
         with:
-          path: |
-            C:/Tools/vcpkg/installed
-            C:/Tools/vcpkg/packages
-            C:/Tools/vcpkg/buildtrees
-          key: vcpkg-${{ runner.os }}-${{ hashFiles('**/vcpkg.json') }}
+          path: C:/vcpkg-binary-cache
+          key: vcpkg-binary-${{ runner.os }}-${{ hashFiles('**/vcpkg.json') }}
           restore-keys: |
-            vcpkg-${{ runner.os }}-
+            vcpkg-binary-${{ runner.os }}-
 
-      # 🔥 CARGO CACHE (EZ NAGY BOOST)
+      # 🔥 VCPKG DOWNLOAD CACHE (kisebb boost)
+      - name: Cache vcpkg downloads
+        uses: actions/cache@v4
+        with:
+          path: C:/Tools/vcpkg/downloads
+          key: vcpkg-downloads-${{ runner.os }}
+          restore-keys: |
+            vcpkg-downloads-
+
+      # 🔥 CARGO CACHE
       - name: Cache cargo
         uses: actions/cache@v4
         with:
@@ -62,9 +72,9 @@ jobs:
           echo "VCPKG_ROOT=C:/Tools/vcpkg" >> $env:GITHUB_ENV
           echo "VCPKG_DEFAULT_TRIPLET=x64-windows" >> $env:GITHUB_ENV
           echo "VCPKG_FEATURE_FLAGS=manifests,binarycaching" >> $env:GITHUB_ENV
-          echo "VCPKG_BINARY_SOURCES=clear;files,C:/Tools/vcpkg/packages,readwrite" >> $env:GITHUB_ENV
+          echo "VCPKG_BINARY_SOURCES=clear;files,C:/vcpkg-binary-cache,readwrite" >> $env:GITHUB_ENV
 
-      # ✅ DEBUG (PRESET - STABIL)
+      # ✅ DEBUG
       - name: Build Debug
         shell: pwsh
         run: |
@@ -72,7 +82,7 @@ jobs:
           cmake --build _build/x64-Debug -j12
           cmake --install _build/x64-Debug
 
-      # ✅ RELEASE (PRESET - STABIL)
+      # ✅ RELEASE
       - name: Build Release
         shell: pwsh
         run: |
