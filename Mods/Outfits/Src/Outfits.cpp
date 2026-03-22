@@ -1109,22 +1109,9 @@ DEFINE_PLUGIN_DETOUR(Outfits, void, OnClearScene, ZEntitySceneContext* th, bool 
     m_SelectedScenes.clear();
     m_LoadedGlobalOutfitBricks.clear();
     m_DiscoveredOutfitBricks.clear();
-
-    if (!m_LoadedScenes.empty()) {
-        UnloadOutfits(m_LoadedScenes);
-    }
-
-    std::vector<ZRuntimeResourceID> s_OutfitBricksToUnload;
-
-    s_OutfitBricksToUnload.reserve(m_AdditionalLoadedOutfitBricks.size());
-
-    for (const auto& [s_OutfitBrickRuntimeResourceId, _] : m_AdditionalLoadedOutfitBricks) {
-        s_OutfitBricksToUnload.push_back(s_OutfitBrickRuntimeResourceId);
-    }
-
-    if (!s_OutfitBricksToUnload.empty()) {
-        UnloadOutfits(s_OutfitBricksToUnload);
-    }
+    m_LoadedScenes.clear();
+    m_SceneToLoadedOutfitBricks.clear();
+    m_AdditionalLoadedOutfitBricks.clear();
 
     return HookResult<void>(HookAction::Continue());
 }
