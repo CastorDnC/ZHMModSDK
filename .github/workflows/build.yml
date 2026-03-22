@@ -20,14 +20,6 @@ jobs:
         with:
           arch: x64
 
-      # --- Rust telepítése, itt kell
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-
       # 🔥 VCPKG CACHE
       - name: Cache vcpkg
         uses: actions/cache@v4
@@ -49,10 +41,16 @@ jobs:
           $env:VCPKG_FEATURE_FLAGS = "manifests,binarycaching"
           $env:VCPKG_BINARY_SOURCES = "clear;files,C:/Tools/vcpkg/packages,readwrite"
 
+          # Ha már fent van Rust
+          $env:PATH = "C:/Users/Castor/.cargo/bin;" + $env:PATH
+
           echo "VCPKG_ROOT=$env:VCPKG_ROOT" >> $env:GITHUB_ENV
           echo "VCPKG_DEFAULT_TRIPLET=$env:VCPKG_DEFAULT_TRIPLET" >> $env:GITHUB_ENV
           echo "VCPKG_FEATURE_FLAGS=$env:VCPKG_FEATURE_FLAGS" >> $env:GITHUB_ENV
           echo "VCPKG_BINARY_SOURCES=$env:VCPKG_BINARY_SOURCES" >> $env:GITHUB_ENV
+
+
+
 
       # 🔥 CONFIGURE
       - name: Configure
