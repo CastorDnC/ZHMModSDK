@@ -20,6 +20,19 @@ jobs:
         with:
           arch: x64
 
+      # 🔥 VCPKG CACHE
+      - name: Cache vcpkg
+        uses: actions/cache@v4
+        with:
+          path: |
+            C:/Tools/vcpkg/installed
+            C:/Tools/vcpkg/packages
+            C:/Tools/vcpkg/buildtrees
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('**/vcpkg.json') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-
+
+      # 🔥 ENV
       - name: Setup VCPKG env
         shell: pwsh
         run: |
@@ -33,7 +46,8 @@ jobs:
           echo "VCPKG_FEATURE_FLAGS=$env:VCPKG_FEATURE_FLAGS" >> $env:GITHUB_ENV
           echo "VCPKG_BINARY_SOURCES=$env:VCPKG_BINARY_SOURCES" >> $env:GITHUB_ENV
 
-      - name: Configure (CMake)
+      # 🔥 CONFIGURE
+      - name: Configure
         shell: pwsh
         run: |
           cmake -S . -B _build `
@@ -41,12 +55,11 @@ jobs:
             -DCMAKE_BUILD_TYPE=Debug `
             -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
 
+      # 🔥 BUILD
       - name: Build
         shell: pwsh
-        run: |
-          cmake --build _build --config Debug -j12
+        run: cmake --build _build -j12
 
       - name: Install
         shell: pwsh
-        run: |
-          cmake --install _build
+        run: cmake --install _build
