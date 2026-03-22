@@ -55,6 +55,7 @@ private:
     std::unordered_map<ZRuntimeResourceID, std::pair<ZResourcePtr, ZEntityRef>> m_LoadedGlobalOutfitBricks;
     std::unordered_map<ZRuntimeResourceID, std::pair<ZResourcePtr, ZEntityRef>> m_AdditionalLoadedOutfitBricks;
     std::unordered_set<ZRuntimeResourceID> m_DiscoveredOutfitBricks;
+    std::unordered_set<ZRuntimeResourceID> m_PinnedOutfitBricks;
     std::unordered_set<ZRuntimeResourceID> m_SelectedOutfitBricks;
     bool m_ShowResourcePackageLimitPopup = false;
     bool m_ResourcePackageLimitPopupOpened = false;
