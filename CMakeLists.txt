@@ -62,6 +62,7 @@ set(MODS
         Outfits
         Randomizer
         World
+        Cheats
 )
 
 foreach (MOD IN LISTS MODS)
