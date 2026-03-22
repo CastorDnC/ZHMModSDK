@@ -1,4 +1,4 @@
-name: Build # JA NAGYON KELL A BUILD
+name: Build
 
 on:
   push:
@@ -40,8 +40,6 @@ jobs:
           $env:VCPKG_DEFAULT_TRIPLET = "x64-windows"
           $env:VCPKG_FEATURE_FLAGS = "manifests,binarycaching"
           $env:VCPKG_BINARY_SOURCES = "clear;files,C:/Tools/vcpkg/packages,readwrite"
-
-          # Ha már fent van Rust
           $env:PATH = "C:/Users/Castor/.cargo/bin;" + $env:PATH
 
           echo "VCPKG_ROOT=$env:VCPKG_ROOT" >> $env:GITHUB_ENV
@@ -49,23 +47,121 @@ jobs:
           echo "VCPKG_FEATURE_FLAGS=$env:VCPKG_FEATURE_FLAGS" >> $env:GITHUB_ENV
           echo "VCPKG_BINARY_SOURCES=$env:VCPKG_BINARY_SOURCES" >> $env:GITHUB_ENV
 
-
-
-
-      # 🔥 CONFIGURE
-      - name: Configure
+      # 🔥 CONFIGURE Debug
+      - name: Configure Debug
         shell: pwsh
         run: |
-          cmake -S . -B _build `
-            -G Ninja `
+          cmake -S . -B _build/x64-Debug -G Ninja `
             -DCMAKE_BUILD_TYPE=Debug `
             -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
 
-      # 🔥 BUILD
-      - name: Build
+      # 🔥 CONFIGURE Release
+      - name: Configure Release
         shell: pwsh
-        run: cmake --build _build -j12
+        run: |
+          cmake -S . -B _build/x64-Release -G Ninja `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
 
-      - name: Install
+      # 🔥 BUILD Debug
+      - name: Build Debug
         shell: pwsh
-        run: cmake --install _build
+        run: cmake --build _build/x64-Debug -j12
+
+      # 🔥 BUILD Release
+      - name: Build Release
+        shell: pwsh
+        run: cmake --build _build/x64-Release -j12
+
+      # 🔥 INSTALL Debug
+      - name: Install Debug
+        shell: pwsh
+        run: cmake --install _build/x64-Debug
+
+      # 🔥 INSTALL Release
+      - name: Install Release
+        shell: pwsh
+        run: cmake --install _build/x64-Release
+
+      # 🔥 COPY Debug Artifacts
+      - name: Copy Debug Artifacts
+        shell: pwsh
+        run: |
+          mkdir _dist-debug
+          Copy-Item _install/x64-Debug/bin/* -Destination _dist-debug/ -Recurse
+          Copy-Item _install/x64-Debug/licenses -Destination _dist-debug/ -Recurse
+          Copy-Item LICENSE -Destination _dist-debug/LICENSE
+
+      # 🔥 COPY Release Artifacts
+      - name: Copy Release Artifacts
+        shell: pwsh
+        run: |
+          mkdir _dist-release
+          Copy-Item _install/x64-Release/bin/* -Destination _dist-release/ -Recurse
+          Copy-Item _install/x64-Release/licenses -Destination _dist-release/ -Recurse
+          Copy-Item LICENSE -Destination _dist-release/LICENSE
+
+      # 🔥 MOVE Release PDBs
+      - name: Move Release PDBs
+        shell: pwsh
+        run: |
+          mkdir _dist-release-pdbs
+          Get-ChildItem -Path _dist-release\* -Include *.pdb -Recurse | Move-Item -Destination _dist-release-pdbs
+
+      # 🔥 CREATE SDK DEV PACKAGE
+      - name: Create SDK Dev Package
+        shell: pwsh
+        run: |
+          mkdir _sdk
+          Copy-Item cmake/sdk-dist.cmake -Destination _sdk/CMakeLists.txt
+          Copy-Item _install/x64-Release/include -Destination _sdk/ -Recurse
+
+          mkdir _sdk/release
+          Copy-Item _install/x64-Release/lib -Destination _sdk/release/ -Recurse
+          Copy-Item _install/x64-Release/bin -Destination _sdk/release/ -Recurse
+          Remove-Item _sdk/release/bin/mods -Recurse
+          Remove-Item _sdk/release/bin/dinput8.dll
+          Remove-Item _sdk/release/bin/dinput8.pdb
+          Remove-Item _sdk/release/bin/ResourceLib_HM3.dll
+          Remove-Item _sdk/release/bin/ResourceLib_HM3.pdb
+          Remove-Item _sdk/release/bin/crashpad_handler.exe
+
+          mkdir _sdk/debug
+          Copy-Item _install/x64-Debug/lib -Destination _sdk/debug/ -Recurse
+          Copy-Item _install/x64-Debug/bin -Destination _sdk/debug/ -Recurse
+          Remove-Item _sdk/debug/bin/mods -Recurse
+          Remove-Item _sdk/debug/bin/dinput8.dll
+          Remove-Item _sdk/debug/bin/dinput8.pdb
+          Remove-Item _sdk/debug/bin/ResourceLib_HM3.dll
+          Remove-Item _sdk/debug/bin/ResourceLib_HM3.pdb
+          Remove-Item _sdk/debug/bin/crashpad_handler.exe
+
+          mkdir _sdk/cmake
+          Copy-Item cmake/zhm-mod.cmake -Destination _sdk/cmake/zhm-mod.cmake
+          Copy-Item _install/x64-Release/licenses -Destination _sdk/ -Recurse
+          Copy-Item LICENSE -Destination _sdk/LICENSE
+
+      # 🔥 UPLOAD ARTIFACTS
+      - name: Upload Debug
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZHMModSDK-Debug
+          path: _dist-debug/*
+
+      - name: Upload Release
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZHMModSDK-Release
+          path: _dist-release/*
+
+      - name: Upload Release PDBs
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZHMModSDK-Release-PDBs
+          path: _dist-release-pdbs/*
+
+      - name: Upload Dev SDK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DevPkg-ZHMModSDK
+          path: _sdk/*
