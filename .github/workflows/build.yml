@@ -20,6 +20,14 @@ jobs:
         with:
           arch: x64
 
+      # --- Rust telepítése, itt kell
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
       # 🔥 VCPKG CACHE
       - name: Cache vcpkg
         uses: actions/cache@v4
