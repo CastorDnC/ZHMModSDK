@@ -247,7 +247,7 @@ void Cheats::OnDraw3D(IRenderer* p_Renderer) {
             s_Color = ColorDead();
         } else if (s_Actor->m_bContractTarget || s_Actor->m_bContractTargetLive) {
             s_Color = ColorTarget();
-        } else if (s_Actor->m_bActiveEnforcer || s_Actor->m_bActiveSentry || s_Actor->m_bIsPotentialEnforcer) {
+        } else if (s_Actor->m_bIsActiveEnforcer || s_Actor->m_bActiveSentry || s_Actor->m_bIsPotentialEnforcer) {
             s_Color = ColorGuard();
         } else {
             s_Color = ColorAlive();
@@ -282,7 +282,7 @@ void Cheats::OnDraw3D(IRenderer* p_Renderer) {
             if (m_ESPShowNames) {
                 const std::string s_Name(s_Actor->m_sActorName.c_str(), s_Actor->m_sActorName.size());
                 p_Renderer->DrawText2D(
-                    ZString(s_Name.c_str()),
+                    ZString(std::string_view(s_Name.c_str(), s_Name.size())),
                     {s_ScreenHead.x, s_TextY},
                     s_TextColor, 0.f, 1.f,
                     TextAlignment::Center, TextAlignment::Bottom
@@ -293,7 +293,7 @@ void Cheats::OnDraw3D(IRenderer* p_Renderer) {
             if (m_ESPShowHealth && s_Alive) {
                 const std::string s_HP = std::to_string(static_cast<int>(s_Actor->m_fCurrentHitPoints)) + " HP";
                 p_Renderer->DrawText2D(
-                    ZString(s_HP.c_str()),
+                    ZString(std::string_view(s_HP.c_str(), s_HP.size())),
                     {s_ScreenHead.x, s_TextY},
                     {0.3f, 1.f, 0.3f, 1.f}, 0.f, 0.9f,
                     TextAlignment::Center, TextAlignment::Bottom
@@ -308,7 +308,7 @@ void Cheats::OnDraw3D(IRenderer* p_Renderer) {
                 const float s_Dist = std::sqrtf(s_Dx * s_Dx + s_Dy * s_Dy + s_Dz * s_Dz);
                 const std::string s_DistStr = std::to_string(static_cast<int>(s_Dist)) + "m";
                 p_Renderer->DrawText2D(
-                    ZString(s_DistStr.c_str()),
+                    ZString(std::string_view(s_DistStr.c_str(), s_DistStr.size())),
                     {s_ScreenHead.x, s_TextY},
                     {0.8f, 0.8f, 0.8f, 1.f}, 0.f, 0.9f,
                     TextAlignment::Center, TextAlignment::Bottom
