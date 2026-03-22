@@ -1,4 +1,4 @@
-name: Build
+name: Build # JA NAGYON KELL A BUILD
 
 on:
   push:
