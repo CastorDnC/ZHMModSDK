@@ -4,21 +4,32 @@ on:
   push:
     branches: [ master ]
   pull_request:
+  release:
+    types: [ created ]
 
 jobs:
   build:
     runs-on: cstr-runner
 
     steps:
+      # 🔥 CHECKOUT
       - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
+      # 🔥 MSVC
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
+
+      # 🔥 USE LOCAL TOOLS (Ninja, Rust, stb.)
+      - name: Use local tools
+        shell: pwsh
+        run: |
+          $env:PATH = "C:/Tools/ninja;C:/Program Files/CMake/bin;C:/Users/Castor/.cargo/bin;" + $env:PATH
+          echo "PATH=$env:PATH" >> $env:GITHUB_ENV
 
       # 🔥 VCPKG CACHE
       - name: Cache vcpkg
@@ -32,58 +43,44 @@ jobs:
           restore-keys: |
             vcpkg-${{ runner.os }}-
 
-      # 🔥 ENV
+      # 🔥 CARGO CACHE (EZ NAGY BOOST)
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            C:/Users/Castor/.cargo/registry
+            C:/Users/Castor/.cargo/git
+            _build/**/cargo/build
+          key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-
+
+      # 🔥 VCPKG ENV
       - name: Setup VCPKG env
         shell: pwsh
         run: |
-          $env:VCPKG_ROOT = "C:/Tools/vcpkg"
-          $env:VCPKG_DEFAULT_TRIPLET = "x64-windows"
-          $env:VCPKG_FEATURE_FLAGS = "manifests,binarycaching"
-          $env:VCPKG_BINARY_SOURCES = "clear;files,C:/Tools/vcpkg/packages,readwrite"
-          $env:PATH = "C:/Users/Castor/.cargo/bin;" + $env:PATH
+          echo "VCPKG_ROOT=C:/Tools/vcpkg" >> $env:GITHUB_ENV
+          echo "VCPKG_DEFAULT_TRIPLET=x64-windows" >> $env:GITHUB_ENV
+          echo "VCPKG_FEATURE_FLAGS=manifests,binarycaching" >> $env:GITHUB_ENV
+          echo "VCPKG_BINARY_SOURCES=clear;files,C:/Tools/vcpkg/packages,readwrite" >> $env:GITHUB_ENV
 
-          echo "VCPKG_ROOT=$env:VCPKG_ROOT" >> $env:GITHUB_ENV
-          echo "VCPKG_DEFAULT_TRIPLET=$env:VCPKG_DEFAULT_TRIPLET" >> $env:GITHUB_ENV
-          echo "VCPKG_FEATURE_FLAGS=$env:VCPKG_FEATURE_FLAGS" >> $env:GITHUB_ENV
-          echo "VCPKG_BINARY_SOURCES=$env:VCPKG_BINARY_SOURCES" >> $env:GITHUB_ENV
-
-      # 🔥 CONFIGURE Debug
-      - name: Configure Debug
-        shell: pwsh
-        run: |
-          cmake -S . -B _build/x64-Debug -G Ninja `
-            -DCMAKE_BUILD_TYPE=Debug `
-            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
-
-      # 🔥 CONFIGURE Release
-      - name: Configure Release
-        shell: pwsh
-        run: |
-          cmake -S . -B _build/x64-Release -G Ninja `
-            -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
-
-      # 🔥 BUILD Debug
+      # ✅ DEBUG (PRESET - STABIL)
       - name: Build Debug
         shell: pwsh
-        run: cmake --build _build/x64-Debug -j12
+        run: |
+          cmake --preset x64-Debug .
+          cmake --build _build/x64-Debug -j12
+          cmake --install _build/x64-Debug
 
-      # 🔥 BUILD Release
+      # ✅ RELEASE (PRESET - STABIL)
       - name: Build Release
         shell: pwsh
-        run: cmake --build _build/x64-Release -j12
+        run: |
+          cmake --preset x64-Release .
+          cmake --build _build/x64-Release -j12
+          cmake --install _build/x64-Release
 
-      # 🔥 INSTALL Debug
-      - name: Install Debug
-        shell: pwsh
-        run: cmake --install _build/x64-Debug
-
-      # 🔥 INSTALL Release
-      - name: Install Release
-        shell: pwsh
-        run: cmake --install _build/x64-Release
-
-      # 🔥 COPY Debug Artifacts
+      # 🔥 DEBUG ARTIFACT
       - name: Copy Debug Artifacts
         shell: pwsh
         run: |
@@ -92,7 +89,7 @@ jobs:
           Copy-Item _install/x64-Debug/licenses -Destination _dist-debug/ -Recurse
           Copy-Item LICENSE -Destination _dist-debug/LICENSE
 
-      # 🔥 COPY Release Artifacts
+      # 🔥 RELEASE ARTIFACT
       - name: Copy Release Artifacts
         shell: pwsh
         run: |
@@ -101,14 +98,14 @@ jobs:
           Copy-Item _install/x64-Release/licenses -Destination _dist-release/ -Recurse
           Copy-Item LICENSE -Destination _dist-release/LICENSE
 
-      # 🔥 MOVE Release PDBs
+      # 🔥 PDB MOVE
       - name: Move Release PDBs
         shell: pwsh
         run: |
           mkdir _dist-release-pdbs
           Get-ChildItem -Path _dist-release\* -Include *.pdb -Recurse | Move-Item -Destination _dist-release-pdbs
 
-      # 🔥 CREATE SDK DEV PACKAGE
+      # 🔥 SDK PACKAGE
       - name: Create SDK Dev Package
         shell: pwsh
         run: |
@@ -120,28 +117,28 @@ jobs:
           Copy-Item _install/x64-Release/lib -Destination _sdk/release/ -Recurse
           Copy-Item _install/x64-Release/bin -Destination _sdk/release/ -Recurse
           Remove-Item _sdk/release/bin/mods -Recurse
-          Remove-Item _sdk/release/bin/dinput8.dll
-          Remove-Item _sdk/release/bin/dinput8.pdb
-          Remove-Item _sdk/release/bin/ResourceLib_HM3.dll
-          Remove-Item _sdk/release/bin/ResourceLib_HM3.pdb
-          Remove-Item _sdk/release/bin/crashpad_handler.exe
+          Remove-Item _sdk/release/bin/dinput8.dll -ErrorAction SilentlyContinue
+          Remove-Item _sdk/release/bin/dinput8.pdb -ErrorAction SilentlyContinue
+          Remove-Item _sdk/release/bin/ResourceLib_HM3.dll -ErrorAction SilentlyContinue
+          Remove-Item _sdk/release/bin/ResourceLib_HM3.pdb -ErrorAction SilentlyContinue
+          Remove-Item _sdk/release/bin/crashpad_handler.exe -ErrorAction SilentlyContinue
 
           mkdir _sdk/debug
           Copy-Item _install/x64-Debug/lib -Destination _sdk/debug/ -Recurse
           Copy-Item _install/x64-Debug/bin -Destination _sdk/debug/ -Recurse
           Remove-Item _sdk/debug/bin/mods -Recurse
-          Remove-Item _sdk/debug/bin/dinput8.dll
-          Remove-Item _sdk/debug/bin/dinput8.pdb
-          Remove-Item _sdk/debug/bin/ResourceLib_HM3.dll
-          Remove-Item _sdk/debug/bin/ResourceLib_HM3.pdb
-          Remove-Item _sdk/debug/bin/crashpad_handler.exe
+          Remove-Item _sdk/debug/bin/dinput8.dll -ErrorAction SilentlyContinue
+          Remove-Item _sdk/debug/bin/dinput8.pdb -ErrorAction SilentlyContinue
+          Remove-Item _sdk/debug/bin/ResourceLib_HM3.dll -ErrorAction SilentlyContinue
+          Remove-Item _sdk/debug/bin/ResourceLib_HM3.pdb -ErrorAction SilentlyContinue
+          Remove-Item _sdk/debug/bin/crashpad_handler.exe -ErrorAction SilentlyContinue
 
           mkdir _sdk/cmake
           Copy-Item cmake/zhm-mod.cmake -Destination _sdk/cmake/zhm-mod.cmake
           Copy-Item _install/x64-Release/licenses -Destination _sdk/ -Recurse
           Copy-Item LICENSE -Destination _sdk/LICENSE
 
-      # 🔥 UPLOAD ARTIFACTS
+      # 🔥 UPLOAD
       - name: Upload Debug
         uses: actions/upload-artifact@v4
         with:
